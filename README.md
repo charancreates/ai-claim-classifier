@@ -1,7 +1,5 @@
 # Kasparro FSE Intern Pathway Assessment: AI Claim Extraction & Classification
 
-**Repository Link**: [https://github.com/charancreates/ai-claim-classifier](https://github.com/charancreates/ai-claim-classifier)
-
 Automated pipeline to extract factual product claim sentences from long, unstructured AI answers, validate character offsets against original text, and classify each claim against an authoritative product catalogue (`supported`, `contradicted`, or `unknown`).
 
 ---
