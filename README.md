@@ -231,6 +231,5 @@ V2_PROMPT_TEMPLATE = V1_PROMPT_TEMPLATE.replace(
 
 * **Time Spent**: ~2.5 to 3 hours total building the agent, parser, database schema, evaluation harness, API endpoints, tests, and running artifacts.
 * **AI Assistance Disclosure**:
-  * **Claude Code**: Used for initial brainstorming, requirement analysis, and rubric alignment.
+  * **Claude**: Used for initial brainstorming, requirement analysis, and rubric alignment.
   * **Google Gemini / Antigravity**: Assisted in coding, test generation, and pair-programming.
-  * **Human Verification**: All character offset math, quote equality logic, $G, P, M, C$ scoring formulas, database relational integrity, and final report artifacts were manually inspected and validated.
