@@ -31,7 +31,7 @@ Automated pipeline to extract factual product claim sentences from long, unstruc
 │   ├── prompts.py              # Frozen V1 baseline & single targeted V2 prompt
 │   └── provider.py             # LLM provider adapter with function calling
 ├── tests/
-│   └── test_core.py            # Comprehensive unit and integration test suite
+│   └── test_core.py            # Controlled parser, span, scorer & failure tests
 ├── .env.example                # Secret-free environment template
 ├── pyproject.toml              # Project metadata & build configuration
 ├── requirements.txt            # Pinned dependency versions
@@ -40,7 +40,18 @@ Automated pipeline to extract factual product claim sentences from long, unstruc
 
 ---
 
-## 2. Dataset Verification & SHA-256 Hashes
+## 2. Design Decisions
+
+* **Python locates offsets**: The agent locates quotes in the original `ai_answer` via zero-based Python Unicode code points, so the LLM never counts characters.
+* **Preserve error fidelity**: Any invalid output, unknown tool, or malformed quote becomes an answer-level error; it is never silently masked as "unknown".
+* **Strict tool validation**: Only `get_brand_facts` is callable, and only for existing brands in the catalogue.
+* **Zero data leakage**: Gold spans, labels, and reference IDs are strictly isolated to the evaluation harness; they never enter model prompts or tool calls.
+* **Constrained execution**: Enforces a strict maximum of 3 model turns and a configurable per-request provider timeout (30 seconds).
+* **Targeted prompt separation**: V1 and V2 are distinct, frozen prompt templates; V2 is strictly V1 plus one targeted brevity rule.
+
+---
+
+## 3. Dataset Verification & Hashes
 
 The dataset is loaded with strict UTF-8 decoding, preserving original whitespace, quotes, and punctuation without normalization.
 
@@ -52,7 +63,7 @@ The dataset is loaded with strict UTF-8 decoding, preserving original whitespace
 
 ---
 
-## 3. Environment & Database Setup
+## 4. Setup & Environment
 
 ### Prerequisites
 * Python 3.11+
@@ -65,22 +76,22 @@ cd ai-claim-classifier
 
 # Create virtual environment
 python -m venv .venv
-# On Windows:
+# Windows:
 .\.venv\Scripts\activate
-# On Linux/macOS:
+# Linux/macOS:
 source .venv/bin/activate
 
 # Install pinned dependencies
 pip install -r requirements.txt
 ```
 
-### Secret-Free Environment Configuration
-Copy the template to `.env` (note: `.env` is ignored by `.gitignore` and must never be committed):
+### Environment Configuration
+Copy `.env.example` to `.env` (note: `.env` is ignored by `.gitignore` and never committed):
 ```bash
 cp .env.example .env
 ```
 
-Configure `.env`:
+Set the database connection string and provider configuration in `.env`:
 ```env
 DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/kasparro
 LLM_PROVIDER=gemini
@@ -91,73 +102,83 @@ DATA_DIR=data
 ```
 
 ### PostgreSQL Setup
-Create the database:
 ```sql
 CREATE DATABASE kasparro;
 ```
-Tables (`evaluation_runs`, `answer_outcomes`, `claim_outcomes`) and relational constraints with cascading deletes are automatically initialized by SQLAlchemy on startup.
-
-* **Provider Timeout**: Fixed at **30 seconds** per provider call (configured via `PROVIDER_TIMEOUT_SECONDS`).
+Tables (`evaluation_runs`, `answer_outcomes`, `claim_outcomes`) and relational foreign keys with cascading deletes are automatically initialized on application startup.
 
 ---
 
-## 4. Execution & Testing Commands
+## 5. Execution & API Examples
 
 ### A. Run Controlled Tests
-Execute the full test suite and verify parser, scorer arithmetic, provider error handling, and API persistence:
 ```bash
 python -m pytest -v
 ```
-*(The actual verified output of all 17 passing tests is saved in `reports/test_output.txt`)*.
+Verified actual test output (17/17 passed in 1.09s) is committed in [`reports/test_output.txt`](file:///c:/Users/charan/Desktop/kasparro%20assessment/reports/test_output.txt).
 
-### B. Run the FastAPI Web Service
+### B. Start the FastAPI Service
 ```bash
 uvicorn kasparro.main:app --reload --port 8000
 ```
-#### API Endpoints:
-* `POST /classify`: Classifies a single input answer. Rejects invalid input or forbidden fields (`gold`) with HTTP 422; unknown brand with HTTP 404; provider error with HTTP 502; timeout with HTTP 504.
-* `POST /evaluation-runs`: Accepts `{"agent_version": "v1"|"v2", "split": "development"|"check"}`. Returns HTTP 201 Created and saves runs and predictions into PostgreSQL.
-* `GET /evaluation-runs/{run_id}`: Returns the complete joined run, answer outcomes, and predicted claims in stable source order. Returns HTTP 404 for missing runs and HTTP 422 for invalid UUIDs.
 
-### C. Run the Evaluation Pipeline
+### C. Example 1: `POST /classify` Request
 ```bash
-# Run v1 on development
-python run_evaluation.py --version v1 --split development
-
-# Run v2 on development
-python run_evaluation.py --version v2 --split development
-
-# Run v1 on check
-python run_evaluation.py --version v1 --split check
-
-# Run v2 on check
-python run_evaluation.py --version v2 --split check
+curl -X POST "http://127.0.0.1:8000/classify" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "answer_id": "A01",
+    "brand_id": "cleartrail",
+    "question": "As of 1 October 2026, consider ClearTrail Mini for weekend packing...",
+    "ai_answer": "For the current India catalogue, ClearTrail Mini is listed at INR 1,200 less than ClearTrail Plus, comparing the two tax-inclusive prices before shipping. For an authorized India purchase with the original invoice and a manufacturing defect, ClearTrail Mini receives a standard manufacturer warranty lasting 18 months from the purchase date.",
+    "agent_version": "v2"
+  }'
 ```
 
----
+### D. Example 2: Real Extracted Claims Output (from Answer A01)
+```json
+{
+  "answer_id": "A01",
+  "claims": [
+    {
+      "claim_id": "A01:306:460",
+      "start_char": 306,
+      "end_char": 460,
+      "quote": "For the current India catalogue, ClearTrail Mini is listed at INR 1,200 less than ClearTrail Plus, comparing the two tax-inclusive prices before shipping.",
+      "label": "supported",
+      "fact_ids": ["cleartrail.mini.price_2026", "cleartrail.plus.price_2026"],
+      "reason": "ClearTrail Mini list price is INR 1,299 and ClearTrail Plus is INR 2,499, making Mini exactly INR 1,200 less."
+    },
+    {
+      "claim_id": "A01:461:647",
+      "start_char": 461,
+      "end_char": 647,
+      "quote": "For an authorized India purchase with the original invoice and a manufacturing defect, ClearTrail Mini receives a standard manufacturer warranty lasting 18 months from the purchase date.",
+      "label": "contradicted",
+      "fact_ids": ["cleartrail.mini.warranty_india"],
+      "reason": "The standard manufacturer warranty for ClearTrail Mini in India is 12 months, not 18 months."
+    }
+  ]
+}
+```
 
-## 5. Controlled Test Suite Coverage
-
-All 17 tests passed in 1.09s (recorded in `reports/test_output.txt`):
-1. **CSV & Encoding**: Quoted commas and embedded newlines preserved exactly (`test_csv_parser_embedded_newlines_and_quoted_commas`).
-2. **Type Parsing**: Strict boolean (`true`/`false`, rejects `bool("false")`) and numeric conversions (`test_strict_boolean_and_number_parsing`).
-3. **Offset Validation**: Unicode offsets located in `ai_answer`; quote equality verified; non-overlapping ordered spans; unique IDs (`test_exact_quote_and_unicode_offsets`, `test_invalid_quote_not_in_answer_is_rejected`, `test_overlapping_spans_are_rejected`, `test_duplicate_claims_are_rejected`).
-4. **Scorer Arithmetic**: Verified with specification example ($G=10, P=10, M=8, C=7 \to \text{Extraction } F_1 = 0.80, \text{Joint } F_1 = 0.70$), perfect scores, provider errors, and empty predictions (`test_scorer_spec_arithmetic_example`, `test_scorer_perfect_output`, `test_scorer_provider_error_answer_retains_gold_as_missed`, `test_scorer_valid_empty_predictions`).
-5. **Private Benchmark Integrity**: Check split quality metrics remain `null` (`test_scorer_check_split_has_null_quality`).
-6. **Provider & Tool Fakes**: Malformed JSON handling, turn exhaustion hard limit (3 turns), illegal tool rejection, prompt leakage prevention (`test_fake_provider_malformed_output`, `test_fake_provider_turn_exhaustion`, `test_gold_never_leaks_to_model_or_tools`).
-7. **FastAPI & PostgreSQL**: Validation error handling, 404 unknown brands, 422 extra fields, database persistence and joined retrieval (`test_api_classify_and_validation`, `test_api_database_persistence_and_retrieval`).
+### E. Run the CLI Evaluation
+```bash
+python run_evaluation.py --version v1 --split development
+python run_evaluation.py --version v2 --split development
+python run_evaluation.py --version v1 --split check
+python run_evaluation.py --version v2 --split check
+```
 
 ---
 
 ## 6. Baseline (V1) vs Candidate (V2): Targeted Improvement & Results
 
 ### Failure Diagnosis (V1)
-In the baseline V1 run on the 40 development answers, the model frequently generated conversational explanations exceeding two sentences. Under the domain contract (`reason must contain at most two sentences`), these caused complete answer-level validation failures (`error_type: "invalid_output"`):
-* Answers **A05**, **A06**, **A34**, and **A35** failed validation entirely due to verbose reasons.
-* Because an answer error awards 0 accepted predictions while all its reference claims remain in $G$ as missed, this severely penalized both Extraction Recall and Joint Recall.
+In baseline V1 on the 40 development answers, the LLM frequently produced explanations exceeding two sentences. Under the domain contract (`reason must contain at most two sentences`), these triggered `invalid_output` errors, dropping answers A05, A06, A34, and A35 entirely. Because an error results in 0 predictions while reference claims stay in $G$ as missed, this hurt recall significantly.
 
 ### One Targeted Improvement (V2)
-To preserve identical tool contracts, evaluator rules, and model settings, V2 modified only the prompt template by appending an explicit reason brevity instruction:
+V2 retained the exact tool and evaluator rules, modifying only the prompt template to append an explicit reason brevity instruction:
 ```python
 V2_PROMPT_TEMPLATE = V1_PROMPT_TEMPLATE.replace(
     "Output format:",
@@ -183,31 +204,33 @@ V2_PROMPT_TEMPLATE = V1_PROMPT_TEMPLATE.replace(
 | **Gold Coverage ($C / G$)** | 85.64% | **86.70%** | **+1.06%** |
 | **Answer Errors** | 5 | 0 | **-5 (Resolved)** |
 
-### Analysis & Regressions
-* **Gain**: The targeted brevity rule prevented validation crashes on multi-sentence answers, allowing previously dropped valid claims to be extracted and classified, lifting Joint Recall from 85.64% to 86.70%.
-* **Regression / Tradeoff**: Joint Precision dropped slightly from 98.47% to 97.90% due to 2 additional edge-case claims where shorter explanations occasionally omitted contextual caveats, but the overall Joint $F_1$ improved from 0.9161 to 0.9196.
+---
+
+## 7. Limitations and TODOs
+
+### Not Done Yet (Planned Test Extensions)
+* Fake provider tests for an unsupported label, an illegal tool name, an unknown requested brand, and a timeout.
+* Separate scorer unit tests for isolated missed claims, extra advice claims, and wrong labels.
+* Scorer edge cases explicitly rejecting missing or duplicated answer outcomes.
+* API integration tests specifically for HTTP 404, 502, 504 status code assertions, and `GET /evaluation-runs/{id}` with missing IDs or malformed UUIDs.
+
+### Known Limits
+* **Sequential Execution**: The runner executes sequentially; a full run across 50 answers takes several minutes.
+* **Single Model / Provider**: Configured for Gemini without automated provider fallback if unavailable.
+* **Private Check Labels**: Check-split quality is not scored locally; quality metrics remain `null` as required so the reviewer can score with private labels.
+* **Zero Final-Check Tuning**: Prompts and rules were evaluated strictly on A01–A40; no tuning was performed on A41–A50.
+
+### Next Improvements
+* **Soft Retry on Output Failure**: Implement a single in-turn retry when model output formatting fails, before dropping the whole answer.
+* **Concurrent Execution**: Add an asynchronous or thread-pool worker queue for batch evaluation.
+* **Refined Clause Disambiguation**: Review the remaining 3 wrong-label and 2 extra claims in the development report to further isolate compound arithmetic statements.
 
 ---
 
-## 7. Submission Artifacts
-
-All four run reports are saved in [`reports/`](file:///c:/Users/charan/Desktop/kasparro%20assessment/reports):
-1. `reports/v1_development.json`: 40 answers, predictions, missed gold IDs, wrong labels, and scores.
-2. `reports/v2_development.json`: 40 answers, candidate predictions, and improved scores.
-3. `reports/v1_check.json`: 10 final-check answers (A41–A50) with predictions; quality metrics are `null`.
-4. `reports/v2_check.json`: 10 final-check answers (A41–A50) with predictions; quality metrics are `null`.
-5. `reports/sanitized_exchange.json`: Full model/tool conversation transcript for answer A01, verified free of API keys or secrets.
-6. `reports/test_output.txt`: Actual pytest execution console log.
-
----
-
-## 8. Time Spent, Limitations & AI Assistance Disclosure
+## 8. AI Assistance Disclosure & Time Spent
 
 * **Time Spent**: ~2.5 to 3 hours total building the agent, parser, database schema, evaluation harness, API endpoints, tests, and running artifacts.
-* **Limitations & Unfinished Work**:
-  * Agent execution is currently sequential; parallel batch processing with rate-limiting queues could accelerate runs.
-  * Sentence boundary tokenization relies on punctuation heuristics; integration of spaCy or a formal NLP sentence segmenter would provide even tighter boundary precision on rare abbreviations.
 * **AI Assistance Disclosure**:
-  * **Claude Code**: Used for initial architectural decomposition, requirement review, and rubric planning.
-  * **Google Gemini / Antigravity**: Used for code implementation, test scaffolding, and debugging.
-  * **Manual Human Verification**: All Unicode offset calculations, exact-span matcher logic, arithmetic metrics ($G, P, M, C$), database uniqueness constraints, and live-run artifact verification were independently checked.
+  * **Claude Code**: Used for initial brainstorming, requirement analysis, and rubric alignment.
+  * **Google Gemini / Antigravity**: Assisted in coding, test generation, and pair-programming.
+  * **Human Verification**: All character offset math, quote equality logic, $G, P, M, C$ scoring formulas, database relational integrity, and final report artifacts were manually inspected and validated.
