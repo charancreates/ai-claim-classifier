@@ -1,0 +1,143 @@
+{
+  "answer_id": "A01",
+  "brand_id": "cleartrail",
+  "question": "As of 1 October 2026, consider ClearTrail Mini for weekend packing. Compare the speaker for a weekend away, including purchase terms and the details that might be confused with a related model.",
+  "turn_1": {
+    "role": "user",
+    "prompt_excerpt": "You are an AI fact verification agent. Your task is to identify and extract complete factual claim sentences from an AI-generated answer about speaker products, and classify each claim as supported, contradicted, or unknown based ONLY on the official product catalogue facts.\n\nStep 1: If you have not... [truncated]",
+    "tools_provided": [
+      "get_brand_facts(brand_id: string)"
+    ],
+    "model_response": {
+      "function_calls": [
+        {
+          "name": "get_brand_facts",
+          "args": {
+            "brand_id": "cleartrail"
+          }
+        }
+      ]
+    }
+  },
+  "tool_execution": {
+    "tool": "get_brand_facts",
+    "arguments": {
+      "brand_id": "cleartrail"
+    },
+    "fact_count": 44,
+    "sample_facts": [
+      {
+        "fact_id": "cleartrail.mini.model_name",
+        "brand_id": "cleartrail",
+        "model_id": "mini",
+        "field": "model_name",
+        "value": "ClearTrail Mini",
+        "value_type": "string",
+        "unit": null,
+        "condition": null,
+        "valid_from": "2026-01-01",
+        "valid_to": "2026-12-31",
+        "fact_version": "speaker-catalogue-v4"
+      },
+      {
+        "fact_id": "cleartrail.mini.price_2026",
+        "brand_id": "cleartrail",
+        "model_id": "mini",
+        "field": "price_2026",
+        "value": 1299,
+        "value_type": "number",
+        "unit": "INR",
+        "condition": "India official catalogue list price; tax included; shipping excluded",
+        "valid_from": "2026-01-01",
+        "valid_to": "2026-12-31",
+        "fact_version": "speaker-catalogue-v4"
+      },
+      {
+        "fact_id": "cleartrail.mini.price_2025",
+        "brand_id": "cleartrail",
+        "model_id": "mini",
+        "field": "price_2025",
+        "value": 999,
+        "value_type": "number",
+        "unit": "INR",
+        "condition": "India official catalogue list price; tax included; shipping excluded",
+        "valid_from": "2025-01-01",
+        "valid_to": "2025-12-31",
+        "fact_version": "speaker-catalogue-v4"
+      }
+    ]
+  },
+  "turn_2": {
+    "role": "user",
+    "instruction": "Catalogue facts provided. Extract and classify claims.",
+    "model_response_claims": [
+      {
+        "quote": "For the current India catalogue, ClearTrail Mini is listed at INR 1,200 less than ClearTrail Plus, comparing the two tax-inclusive prices before shipping.",
+        "label": "supported",
+        "fact_ids": [
+          "cleartrail.mini.price_2026",
+          "cleartrail.plus.price_2026"
+        ],
+        "reason": "ClearTrail Mini is priced at 1299 INR and ClearTrail Plus at 2499 INR in 2026, making Mini exactly 1200 INR less."
+      },
+      {
+        "quote": "For an authorized India purchase with the original invoice and a manufacturing defect, ClearTrail Mini receives a standard manufacturer warranty lasting 18 months from the purchase date.",
+        "label": "contradicted",
+        "fact_ids": [
+          "cleartrail.mini.warranty_india"
+        ],
+        "reason": "The standard manufacturer warranty for ClearTrail Mini in India is 12 months, not 18 months."
+      },
+      {
+        "quote": "An opened ClearTrail Mini can be returned to any authorized India seller within thirty days for a full refund, even when the speaker has no manufacturing defect or functional problem.",
+        "label": "unknown",
+        "fact_ids": [],
+        "reason": "The catalogue does not contain information regarding return policies or refund terms."
+      },
+      {
+        "quote": "The sustained amplifier output of ClearTrail Mini is forty watts per channel during ordinary playback, which allows a direct loudness comparison with other speakers advertised using electrical power figures.",
+        "label": "unknown",
+        "fact_ids": [],
+        "reason": "The catalogue does not provide amplifier output wattage specifications for ClearTrail Mini."
+      },
+      {
+        "quote": "An authorized India service centre guarantees repair of ClearTrail Mini within two working days after receiving the unit and the required purchase paperwork, regardless of replacement-part availability.",
+        "label": "unknown",
+        "fact_ids": [],
+        "reason": "The catalogue does not state repair turnaround times or service centre guarantees."
+      },
+      {
+        "quote": "The stated laboratory playback time for ClearTrail Mini, using a new battery with EQ off at one hundred percent volume, remains 12 hours without any reduction for louder playback.",
+        "label": "contradicted",
+        "fact_ids": [
+          "cleartrail.mini.battery_100_percent"
+        ],
+        "reason": "At 100 percent volume with EQ off, the laboratory test battery life for ClearTrail Mini is 6 hours, not 12 hours."
+      },
+      {
+        "quote": "For an India purchase at the official catalogue list price on 1 October 2026, ClearTrail Mini costs INR 1,299 including tax but excluding shipping.",
+        "label": "supported",
+        "fact_ids": [
+          "cleartrail.mini.price_2026"
+        ],
+        "reason": "The 2026 official India catalogue list price for ClearTrail Mini is INR 1,299, tax included and shipping excluded."
+      },
+      {
+        "quote": "The official India retail box for ClearTrail Mini includes a wall charging adapter, even though separate accessory lists may make the charging arrangement look less obvious.",
+        "label": "contradicted",
+        "fact_ids": [
+          "cleartrail.mini.adapter_included"
+        ],
+        "reason": "The wall charging adapter is explicitly not included in the official India retail box for ClearTrail Mini."
+      },
+      {
+        "quote": "The built-in Wi-Fi capability of ClearTrail Mini is absent, which should be treated as a separate specification from its ability to receive audio over Bluetooth.",
+        "label": "supported",
+        "fact_ids": [
+          "cleartrail.mini.wifi"
+        ],
+        "reason": "The catalogue confirms that built-in Wi-Fi connectivity is false (absent) for ClearTrail Mini."
+      }
+    ]
+  }
+}

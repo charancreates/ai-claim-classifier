@@ -1,0 +1,34 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-9.1.1, pluggy-1.7.0 -- C:\Users\charan\Desktop\kasparro assessment\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\charan\Desktop\kasparro assessment
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.15.1
+collecting ... collected 17 items
+
+tests/test_core.py::test_csv_parser_embedded_newlines_and_quoted_commas PASSED [  5%]
+tests/test_core.py::test_strict_boolean_and_number_parsing PASSED        [ 11%]
+tests/test_core.py::test_exact_quote_and_unicode_offsets PASSED          [ 17%]
+tests/test_core.py::test_invalid_quote_not_in_answer_is_rejected PASSED  [ 23%]
+tests/test_core.py::test_overlapping_spans_are_rejected PASSED           [ 29%]
+tests/test_core.py::test_duplicate_claims_are_rejected PASSED            [ 35%]
+tests/test_core.py::test_invalid_label_and_invented_fact_ids_are_rejected PASSED [ 41%]
+tests/test_core.py::test_scorer_spec_arithmetic_example PASSED           [ 47%]
+tests/test_core.py::test_scorer_perfect_output PASSED                    [ 52%]
+tests/test_core.py::test_scorer_provider_error_answer_retains_gold_as_missed PASSED [ 58%]
+tests/test_core.py::test_scorer_valid_empty_predictions PASSED           [ 64%]
+tests/test_core.py::test_scorer_check_split_has_null_quality PASSED      [ 70%]
+tests/test_core.py::test_fake_provider_malformed_output PASSED           [ 76%]
+tests/test_core.py::test_fake_provider_turn_exhaustion PASSED            [ 82%]
+tests/test_core.py::test_gold_never_leaks_to_model_or_tools PASSED       [ 88%]
+tests/test_core.py::test_api_classify_and_validation PASSED              [ 94%]
+tests/test_core.py::test_api_database_persistence_and_retrieval PASSED   [100%]
+
+============================== warnings summary ===============================
+.venv\Lib\site-packages\fastapi\testclient.py:1
+  C:\Users\charan\Desktop\kasparro assessment\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 17 passed, 1 warning in 1.09s ========================
